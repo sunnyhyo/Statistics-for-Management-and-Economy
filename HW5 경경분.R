@@ -1,0 +1,308 @@
+################################################
+#
+#   HW5 : 경제경영자료분석
+#   1585063 박효선
+#
+################################################
+
+library(forecast)
+library(lmtest)
+rm(list=ls())
+setwd("C:/Users/HS/Documents/GitHub/Statistics-for-Management-and-Economy")
+
+data <- read.csv("RV_IV_data.csv")
+head(data)
+tail(data)
+options("scipen" = 100)
+
+################################################
+# 첫번째 : Y = KOSPI.RV, X = VKOSPI
+y.t = data$KOSPI.RV   # KOSPI 5분 실현변동성
+x.t = data$VKOSPI     # VKOSPI 
+
+# 1번
+grangertest(y.t~x.t)
+
+# 2번
+
+# 차수결정 
+AR.bic = c()
+for( p in 1:10){
+  AR.fit = Arima(y.t, order = c(p,0,0))
+  AR.aic[p] = AR.fit$aic
+  AR.bic[p] = AIC(AR.fit,k = log(length(y.t)))
+}
+plot(AR.bic, type = "b", pch =19, main = "BIC", ylab = "", xlab = "p")
+abline(v = which.min(AR.bic), col=2, lty = 2)
+
+
+# 1-step 예측
+AR.fore = c(); ADL.fore1 = c()
+for(i in 3106:(length(y.t)-1)){
+  train.data = data.frame(y.t = y.t[1:i], Unemp = x.t[1:i])
+  y_t = train.data[9:nrow(train.data),1]
+  
+  y_t_1 = train.data[8:(nrow(train.data)-1),1]
+  y_t_2 = train.data[7:(nrow(train.data)-2),1]
+  y_t_3 = train.data[6:(nrow(train.data)-3),1]
+  y_t_4 = train.data[5:(nrow(train.data)-4),1]
+  y_t_5 = train.data[4:(nrow(train.data)-5),1]
+  y_t_6 = train.data[3:(nrow(train.data)-6),1]
+  y_t_7 = train.data[2:(nrow(train.data)-7),1]
+  y_t_8 = train.data[1:(nrow(train.data)-8),1]
+  
+  Un_t = train.data[9:(nrow(train.data)),2]
+  Un_t_1 = train.data[8:(nrow(train.data)-1),2]
+  Un_t_2 = train.data[7:(nrow(train.data)-2),2]
+  Un_t_3 = train.data[6:(nrow(train.data)-3),2]
+  Un_t_4 = train.data[5:(nrow(train.data)-4),2]
+  Un_t_5 = train.data[4:(nrow(train.data)-5),2]
+  Un_t_6 = train.data[3:(nrow(train.data)-6),2]
+  Un_t_7 = train.data[2:(nrow(train.data)-7),2]
+  Un_t_8 = train.data[1:(nrow(train.data)-8),2]
+  
+  # AR(8)
+  AR.fit = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8)
+  AR.fore[i-3105] = sum(AR.fit$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                        y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)]))
+  
+  ## ADL(8,8)
+  ADL.fit1 = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8 + 
+                  Un_t_1 + Un_t_2 + Un_t_3 + Un_t_4 + Un_t_5  +Un_t_6 + Un_t_7 + Un_t_8)
+  ADL.fore1[i-3105] = sum(ADL.fit1$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                          y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)],
+                                          Un_t[length(y_t)], Un_t_1[length(y_t)], Un_t_2[length(y_t)], Un_t_3[length(y_t)],
+                                          Un_t_4[length(y_t)], Un_t_5[length(y_t)], Un_t_6[length(y_t)], Un_t_7[length(y_t)]))
+  
+}
+
+AR.MAE = mean(abs(AR.fore - y.t[3017:length(y.t)]))
+ADL.MAE1 = mean(abs(ADL.fore1 - y.t[3017:length(y.t)]))
+
+AR.MSE = mean((AR.fore - y.t[3017:length(y.t)])^2)
+ADL.MSE1 = mean((ADL.fore1 - y.t[3017:length(y.t)])^2)
+
+result = matrix(c(AR.MAE, ADL.MAE1, AR.MSE, ADL.MSE1), nrow = 2, byrow = T)
+row.names(result) = c("MAE", "MSE")
+colnames(result) = c("AR(8)", "ADL(8,8)")
+result
+
+################################################
+# 두번째 : Y = VKOSPI,X = KOSPI.RV
+y.t = data$VKOSPI
+x.t = data$KOSPI.RV
+
+# 1번
+grangertest(y.t~x.t)
+
+# 2번
+
+# 차수결정 => AR(9), 
+AR.bic = c()
+for( p in 1:10){
+  AR.fit = Arima(y.t, order = c(p,0,0))
+  AR.aic[p] = AR.fit$aic
+  AR.bic[p] = AIC(AR.fit,k = log(length(y.t)))
+}
+plot(AR.bic, type = "b", pch =19, main = "BIC", ylab = "", xlab = "p")
+abline(v = which.min(AR.bic), col=2, lty = 2)
+
+
+# 1-step 예측
+AR.fore = c(); ADL.fore1 = c()
+for(i in 3106:(length(y.t)-1)){
+  train.data = data.frame(y.t = y.t[1:i], Unemp = x.t[1:i])
+  y_t = train.data[10:nrow(train.data),1]
+  
+  y_t_1 = train.data[9:(nrow(train.data)-1),1]
+  y_t_2 = train.data[8:(nrow(train.data)-2),1]
+  y_t_3 = train.data[7:(nrow(train.data)-3),1]
+  y_t_4 = train.data[6:(nrow(train.data)-4),1]
+  y_t_5 = train.data[5:(nrow(train.data)-5),1]
+  y_t_6 = train.data[4:(nrow(train.data)-6),1]
+  y_t_7 = train.data[3:(nrow(train.data)-7),1]
+  y_t_8 = train.data[2:(nrow(train.data)-8),1]
+  y_t_9 = train.data[1:(nrow(train.data)-9),1]
+  
+  Un_t = train.data[10:(nrow(train.data)),2]
+  Un_t_1 = train.data[9:(nrow(train.data)-1),2]
+  Un_t_2 = train.data[8:(nrow(train.data)-2),2]
+  Un_t_3 = train.data[7:(nrow(train.data)-3),2]
+  Un_t_4 = train.data[6:(nrow(train.data)-4),2]
+  Un_t_5 = train.data[5:(nrow(train.data)-5),2]
+  Un_t_6 = train.data[4:(nrow(train.data)-6),2]
+  Un_t_7 = train.data[3:(nrow(train.data)-7),2]
+  Un_t_8 = train.data[2:(nrow(train.data)-8),2]
+  Un_t_9 = train.data[1:(nrow(train.data)-9),2]
+  
+  # AR(9)
+  AR.fit = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8 + y_t_9)
+  AR.fore[i-3105] = sum(AR.fit$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                      y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)], y_t_8[length(y_t)]))
+  
+  ## ADL(9, 9)
+  ADL.fit1 = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8 +  y_t_8 +
+                  Un_t_1 + Un_t_2 + Un_t_3 + Un_t_4 + Un_t_5  +Un_t_6 + Un_t_7 + Un_t_8 + Un_t_9)
+  ADL.fore1[i-3105] = sum(ADL.fit1$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                          y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)], y_t_8[length(y_t)],
+                                          Un_t[length(y_t)], Un_t_1[length(y_t)], Un_t_2[length(y_t)], Un_t_3[length(y_t)],
+                                          Un_t_4[length(y_t)], Un_t_5[length(y_t)], Un_t_6[length(y_t)], Un_t_7[length(y_t)], Un_t_8[length(y_t)]))
+  
+}
+
+AR.MAE = mean(abs(AR.fore - y.t[3017:length(y.t)]))
+ADL.MAE1 = mean(abs(ADL.fore1 - y.t[3017:length(y.t)]))
+
+AR.MSE = mean((AR.fore - y.t[3017:length(y.t)])^2)
+ADL.MSE1 = mean((ADL.fore1 - y.t[3017:length(y.t)])^2)
+
+result = matrix(c(AR.MAE, ADL.MAE1, AR.MSE, ADL.MSE1), nrow = 2, byrow = T)
+row.names(result) = c("MAE", "MSE")
+colnames(result) = c("AR(9)", "ADL(9,9)")
+result
+
+
+
+################################################
+# 세번째 : Y = SNP.RV, X = VIX
+
+y.t = data$SNP.RV
+x.t = data$VIX
+
+# 1번
+grangertest(y.t~x.t)
+
+# 2번
+
+# 차수결정 => AR(8), 
+AR.bic = c()
+for( p in 1:10){
+  AR.fit = Arima(y.t, order = c(p,0,0))
+  AR.aic[p] = AR.fit$aic
+  AR.bic[p] = AIC(AR.fit,k = log(length(y.t)))
+}
+plot(AR.bic, type = "b", pch =19, main = "BIC", ylab = "", xlab = "p")
+abline(v = which.min(AR.bic), col=2, lty = 2)
+
+
+
+# 1-step 예측
+AR.fore = c(); ADL.fore1 = c()
+for(i in 3106:(length(y.t)-1)){
+  train.data = data.frame(y.t = y.t[1:i], Unemp = x.t[1:i])
+  y_t = train.data[9:nrow(train.data),1]
+  
+  y_t_1 = train.data[8:(nrow(train.data)-1),1]
+  y_t_2 = train.data[7:(nrow(train.data)-2),1]
+  y_t_3 = train.data[6:(nrow(train.data)-3),1]
+  y_t_4 = train.data[5:(nrow(train.data)-4),1]
+  y_t_5 = train.data[4:(nrow(train.data)-5),1]
+  y_t_6 = train.data[3:(nrow(train.data)-6),1]
+  y_t_7 = train.data[2:(nrow(train.data)-7),1]
+  y_t_8 = train.data[1:(nrow(train.data)-8),1]
+  
+  Un_t = train.data[9:(nrow(train.data)),2]
+  Un_t_1 = train.data[8:(nrow(train.data)-1),2]
+  Un_t_2 = train.data[7:(nrow(train.data)-2),2]
+  Un_t_3 = train.data[6:(nrow(train.data)-3),2]
+  Un_t_4 = train.data[5:(nrow(train.data)-4),2]
+  Un_t_5 = train.data[4:(nrow(train.data)-5),2]
+  Un_t_6 = train.data[3:(nrow(train.data)-6),2]
+  Un_t_7 = train.data[2:(nrow(train.data)-7),2]
+  Un_t_8 = train.data[1:(nrow(train.data)-8),2]
+  
+  # AR(8)
+  AR.fit = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8)
+  AR.fore[i-3105] = sum(AR.fit$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                      y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)]))
+  
+  ## ADL(8,8)
+  ADL.fit1 = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + y_t_6 + y_t_7 + y_t_8 + 
+                  Un_t_1 + Un_t_2 + Un_t_3 + Un_t_4 + Un_t_5  +Un_t_6 + Un_t_7 + Un_t_8)
+  ADL.fore1[i-3105] = sum(ADL.fit1$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)],
+                                          y_t_4[length(y_t)], y_t_5[length(y_t)], y_t_6[length(y_t)], y_t_7[length(y_t)],
+                                          Un_t[length(y_t)], Un_t_1[length(y_t)], Un_t_2[length(y_t)], Un_t_3[length(y_t)],
+                                          Un_t_4[length(y_t)], Un_t_5[length(y_t)], Un_t_6[length(y_t)], Un_t_7[length(y_t)]))
+  
+}
+
+
+
+AR.MAE = mean(abs(AR.fore - y.t[3017:length(y.t)]))
+ADL.MAE1 = mean(abs(ADL.fore1 - y.t[3017:length(y.t)]))
+
+AR.MSE = mean((AR.fore - y.t[3017:length(y.t)])^2)
+ADL.MSE1 = mean((ADL.fore1 - y.t[3017:length(y.t)])^2)
+
+result = matrix(c(AR.MAE, ADL.MAE1, AR.MSE, ADL.MSE1), nrow = 2, byrow = T)
+row.names(result) = c("MAE", "MSE")
+colnames(result) = c("AR(8)", "ADL(8,8)")
+result
+
+########################################
+# 네번째 : Y = VIX, X = SNP.RV
+
+
+y.t = data$VIX
+x.t = data$SNP.RV
+
+# 1번
+grangertest(y.t ~ x.t)
+
+# 2번
+
+# 차수결정 => AR(5), 
+AR.bic = c()
+for( p in 1:10){
+  AR.fit = Arima(y.t, order = c(p,0,0))
+  AR.aic[p] = AR.fit$aic
+  AR.bic[p] = AIC(AR.fit,k = log(length(y.t)))
+}
+plot(AR.bic, type = "b", pch =19, main = "BIC", ylab = "", xlab = "p")
+abline(v = which.min(AR.bic), col=2, lty = 2)
+
+
+
+# 1-step 예측
+AR.fore = c(); ADL.fore1 = c()
+for(i in 3106:(length(y.t)-1)){
+  train.data = data.frame(y.t = y.t[1:i], Unemp = x.t[1:i])
+  y_t = train.data[6:nrow(train.data),1]
+  y_t_1 = train.data[5:(nrow(train.data)-1),1]
+  y_t_2 = train.data[4:(nrow(train.data)-2),1]
+  y_t_3 = train.data[3:(nrow(train.data)-3),1]
+  y_t_4 = train.data[2:(nrow(train.data)-4),1]
+  y_t_5 = train.data[1:(nrow(train.data)-5),1]
+
+  Un_t = train.data[6:(nrow(train.data)),2]
+  Un_t_1 = train.data[5:(nrow(train.data)-1),2]
+  Un_t_2 = train.data[4:(nrow(train.data)-2),2]
+  Un_t_3 = train.data[3:(nrow(train.data)-3),2]
+  Un_t_4 = train.data[2:(nrow(train.data)-4),2]
+  Un_t_5 = train.data[1:(nrow(train.data)-5),2]
+
+  # AR(5)
+  AR.fit = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 )
+  AR.fore[i-3105] = sum(AR.fit$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)], y_t_4[length(y_t)]))
+  
+  ## ADL(5,5)
+  ADL.fit1 = lm(y_t ~ y_t_1 + y_t_2 +y_t_3 + y_t_4 + y_t_5 + 
+                  Un_t_1 + Un_t_2 + Un_t_3 + Un_t_4 + Un_t_5 )
+  ADL.fore1[i-3105] = sum(ADL.fit1$coef*c(1, y_t[length(y_t)], y_t_1[length(y_t)], y_t_2[length(y_t)], y_t_3[length(y_t)], y_t_4[length(y_t)],
+                                          Un_t[length(y_t)], Un_t_1[length(y_t)], Un_t_2[length(y_t)], Un_t_3[length(y_t)], Un_t_4[length(y_t)]))
+  
+}
+
+
+
+AR.MAE = mean(abs(AR.fore - y.t[3017:length(y.t)]))
+ADL.MAE1 = mean(abs(ADL.fore1 - y.t[3017:length(y.t)]))
+
+AR.MSE = mean((AR.fore - y.t[3017:length(y.t)])^2)
+ADL.MSE1 = mean((ADL.fore1 - y.t[3017:length(y.t)])^2)
+
+result = matrix(c(AR.MAE, ADL.MAE1, AR.MSE, ADL.MSE1), nrow = 2, byrow = T)
+row.names(result) = c("MAE", "MSE")
+colnames(result) = c("AR(5)", "ADL(5,5)")
+result
+

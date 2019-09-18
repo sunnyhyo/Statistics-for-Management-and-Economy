@@ -1,0 +1,29 @@
+setwd("C:\\Users\\user\\Dropbox\\data")
+ciga.data = read.csv("ciga.csv",header=TRUE)                          # 데이터 불러오기
+head(ciga.data)                                                       # 데이터 잘불려왔는지 확인
+attach(ciga.data)
+
+rtaxso = taxs/cpi-tax/cpi                                             #sale tax
+rtax = tax/cpi                                                        #ciga tax
+perinc = income/pop/cpi                                               # real per capita state income
+
+
+log.q = log(packpc[year==1995])-log(packpc[year==1985])               #ln(Q_1995)-ln(Q_1985)
+log.p = log(avgprs[year==1995])-log(avgprs[year==1985])               #ln(P_1995)-ln(P_1985)
+log.inc = log(perinc[year==1995])-log(perinc[year==1985])             #ln(income_1995)-ln(income_1985)
+cigatax = rtax[year==1995]-rtax[year==1985]                           #CigTax_1995-CigTax_1985
+saletax = rtaxso[year==1995]-rtaxso[year==1985]                       #SalesTax_1995-SalesTax_1985
+
+library(AER)                                                   # 도구변수 회귀 package
+library(lmtest)                                                # Heterosckedasticity Robust Standard Error package
+
+
+ivreg.fit = ivreg(log.q~log.p+log.inc|saletax+log.inc)         # Y:담배수요, X:담배가격, W:Income, Z(도구변수): Sale tax 도구변수 회귀
+summary(ivreg.fit)                                             # 도구변수 회귀 요약
+coeftest(ivreg.fit, vcov = vcovHC)                             # 도구변수 회귀 Heterosckedasticity Robust Standard Error
+lm.x = lm(log.p~log.inc+saletax)                               # X:담배가격, W:Income, Z(도구변수): Sale tax 1st stage linear regression
+summary(lm.x)
+
+log.p.hat = lm.x$fitted.value
+lm.x2 = lm(log.q~log.p.hat+log.inc)
+summary(lm.x2)
